@@ -175,6 +175,10 @@ from six.moves import urllib
 from six.moves.urllib.error import HTTPError, URLError
 from six.moves.urllib.parse import urlencode
 
+# Import for Image Retrieval 
+from urllib import request
+import os
+
 # WeeWX imports
 import weeutil
 # import weeutil.logger
@@ -685,6 +689,7 @@ class ApiClient(Collector):
     TRANSLATIONS = {'Data': {'Voltage': '_trans_voltage',
                              'UVIndex': '_trans_uv',
                              'Luminance': '_trans_luminance'
+                             'ImageURL': '_trans_image'
                              },
                     'Storm': {'WindDirection': '_trans_wind_dir'}
                     }
@@ -898,6 +903,22 @@ class ApiClient(Collector):
 
         # lookup the direction in WIND_DIR_MAP using a default of None
         data[key] = ApiClient.WIND_DIR_MAP.get(data[key], None)
+        
+    @staticmethod
+    def _trans_image(data, key):
+        """Translate BloomSky API Image URL field.
+
+        API provides image URL , retrive the image and write a std file for 
+        webserver usage
+
+        """
+        if os.path.exists("bloomskyimg.jpg"):
+          os.remove("bloomskyimg.jpg")
+        else:
+          print("The image file does not exist")
+        f = open('bloomskyimg.jpg', 'wb')
+        f.write(request.urlopen(data[key]).read())
+        f.close()
 
     def startup(self):
         """Start a thread that collects data from the BloomSky API."""
