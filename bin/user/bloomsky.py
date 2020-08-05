@@ -176,7 +176,8 @@ from six.moves.urllib.error import HTTPError, URLError
 from six.moves.urllib.parse import urlencode
 
 # Import for Image Retrieval 
-from urllib import request
+import requests # to get image from the web
+import shutil # to save it locally
 import os
 
 # WeeWX imports
@@ -688,7 +689,7 @@ class ApiClient(Collector):
     # Nested dictionaries are used for fields in child fields.
     TRANSLATIONS = {'Data': {'Voltage': '_trans_voltage',
                              'UVIndex': '_trans_uv',
-                             'Luminance': '_trans_luminance'
+                             'Luminance': '_trans_luminance',
                              'ImageURL': '_trans_image'
                              },
                     'Storm': {'WindDirection': '_trans_wind_dir'}
@@ -903,22 +904,33 @@ class ApiClient(Collector):
 
         # lookup the direction in WIND_DIR_MAP using a default of None
         data[key] = ApiClient.WIND_DIR_MAP.get(data[key], None)
-        
+
     @staticmethod
     def _trans_image(data, key):
-        """Translate BloomSky API Image URL field.
-
-        API provides image URL , retrive the image and write a std file for 
-        webserver usage
-
-        """
-        if os.path.exists("bloomskyimg.jpg"):
-          os.remove("bloomskyimg.jpg")
+        # retrieve url file and save as std name
+        if os.path.exists("/var/www/html/weewx/bloomskyimg.jpg"):
+            os.remove("/var/www/html/weewx/bloomskyimg.jpg")
         else:
-          print("The image file does not exist")
-        f = open('bloomskyimg.jpg', 'wb')
-        f.write(request.urlopen(data[key]).read())
-        f.close()
+            print("The image file does not exist")
+        ## Set up the image URL and filename
+        image_url = data[key]
+        print("Try url ",data[key])
+        filename = "/var/www/html/weewx/bloomskyimg.jpg"
+
+        # Open the url image, set stream to True, this will return the stream content.
+        r = requests.get(image_url, stream = True)
+        # Check if the image was retrieved successfully
+        if r.status_code == 200:
+           # Set decode_content value to True, otherwise the downloaded image file's size will be zero.
+           r.raw.decode_content = True
+           print('Image sucessfully Downloaded: ',filename)
+           # Open a local file with wb ( write binary ) permission.
+           with open(filename,'wb') as f:
+               shutil.copyfileobj(r.raw, f)
+
+           print('Image sucessfully written: ',filename)
+        else:
+           print('Image Couldn\'t be retreived')
 
     def startup(self):
         """Start a thread that collects data from the BloomSky API."""
